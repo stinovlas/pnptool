@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "pnptool"
+version = "0.1"
+requires-python = ">=3.10"
+authors = [{name="Jan Musílek", email="stinovlas@gmail.com" }]
+description = "Print and play toolbox"
+readme = "README.md"
+dependencies = [
+  "pypdf[image]",
+  "reportlab",
+  "click",
+]
+
+[project.scripts]
+pnptool = "pnptool.main:cli"
+
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "C90", "I", "S"]
+ignore = []
