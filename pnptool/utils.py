@@ -59,3 +59,4 @@ def common_options(func: Callable[P, T]) -> Callable[P, T]:
 _CONSOLE = Console(highlight=False)
 
 print = _CONSOLE.print
+status = _CONSOLE.status

@@ -1,8 +1,13 @@
+from itertools import batched
 from pathlib import Path
 from typing import Iterable, Sequence
 
-from PIL.Image import Image
+import click
+from PIL import Image
 from pypdf import PdfReader
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfgen.canvas import Canvas
 
 from .constants import (
     POCKETMOD_COLUMNS,
@@ -10,6 +15,7 @@ from .constants import (
     POCKETMOD_PAGES_SEQ,
     POCKETMOD_PDF_PAGES,
     POCKETMOD_ROWS,
+    Offset,
 )
 from .utils import print
 
@@ -17,7 +23,7 @@ from .utils import print
 def parse_images(
     filename: Path | str,
     pages: Sequence[int] = POCKETMOD_PDF_PAGES,
-) -> Iterable[Image]:
+) -> Iterable[Image.Image]:
     """Parse images from PDF file."""
     reader = PdfReader(filename)
     for page in pages:
@@ -25,7 +31,7 @@ def parse_images(
             yield img_object.image
 
 
-def save_images(images: Iterable[Image], prefix: str = "") -> None:
+def save_images(images: Iterable[Image.Image], prefix: str = "") -> None:
     """Save images to filesystem."""
     for i, img in enumerate(images):
         filename = f"{prefix}{i}.jpg"
@@ -34,16 +40,17 @@ def save_images(images: Iterable[Image], prefix: str = "") -> None:
 
 
 def split(
-    images: Iterable[Image],
-    offset: tuple[float, float, float, float] = POCKETMOD_OFFSET,
+    images: Iterable[Image.Image],
+    offset: Offset = POCKETMOD_OFFSET,
     rows: int = POCKETMOD_ROWS,
     cols: int = POCKETMOD_COLUMNS,
-) -> Iterable[Image]:
+) -> Iterable[Image.Image]:
     """Split images by given grid and offset."""
     for img in images:
         xsize, ysize = img.size
-        offtop, offright, offbottom, offleft = offset
-        img = img.crop((offleft, offtop, xsize - offright, ysize - offbottom))
+        img = img.crop(
+            (offset.left, offset.top, xsize - offset.right, ysize - offset.bottom)
+        )
 
         xsize, ysize = img.size
         for j in range(rows):
@@ -60,9 +67,9 @@ def split(
 
 
 def reorder(
-    pages: Iterable[Image],
+    pages: Iterable[Image.Image],
     order: Sequence[int] = POCKETMOD_PAGES_SEQ,
-) -> list[Image]:
+) -> list[Image.Image]:
     """Reorder image sequence."""
     pages = list(pages)
     output = []
@@ -71,13 +78,7 @@ def reorder(
     return output
 
 
-# canvas = Canvas("output.pdf", pagesize=A4)
-# reader = PdfReader(sys.argv[1])
-#
-# pages = (4, 5, 6, 7, 0, 1, 2, 3)
-
-
-def merge(img1: Image, img2: Image) -> Image:
+def merge(img1: Image.Image, img2: Image.Image) -> Image.Image:
     """Merge two images side by side."""
     width = img1.size[0] + img2.size[0]
     height = max(img1.size[1], img2.size[1])
@@ -89,9 +90,11 @@ def merge(img1: Image, img2: Image) -> Image:
     return img
 
 
-def booklet(images: list[Image]) -> list[Image]:
+def booklet(images: list[Image.Image]) -> list[Image.Image]:
     """Create image pairs in order to form a foldable booklet."""
-    assert len(images) % 4 == 0, "Number of pages has to be divisible by 4"
+    if len(images) % 4 != 0:
+        raise click.UsageError("Number of images has to be divisible by 4")
+
     booklet = []
     while images:
         booklet.append(merge(images.pop(), images.pop(0)))
@@ -99,8 +102,32 @@ def booklet(images: list[Image]) -> list[Image]:
     return booklet
 
 
-def booklet_pdf(images: list[Image]) -> None:
-    pass
+def booklet_pdf(images: list[Image.Image], file: str) -> None:
+    images = booklet(images)
+
+    canvas = Canvas(file, pagesize=A4)
+    xoffset = (A4[0] - 2 * 63 * mm) / 2
+    yoffset = (A4[1] - (2 * 88 + 10) * mm) / 2
+
+    for batch in batched(images, 4):
+        canvas.drawInlineImage(
+            batch[0], xoffset, yoffset + 88 * mm + 10, height=88 * mm, width=2 * 63 * mm
+        )
+        canvas.drawInlineImage(
+            batch[2], xoffset, yoffset, height=88 * mm, width=2 * 63 * mm
+        )
+        canvas.showPage()
+
+        canvas.drawInlineImage(
+            batch[1], xoffset, yoffset + 88 * mm + 10, height=88 * mm, width=2 * 63 * mm
+        )
+        canvas.drawInlineImage(
+            batch[3], xoffset, yoffset, height=88 * mm, width=2 * 63 * mm
+        )
+        canvas.showPage()
+
+    canvas.save()
+    print(file)
 
 
 # page = reader.pages[0]

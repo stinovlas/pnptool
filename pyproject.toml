@@ -1,12 +1,11 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
-
 
 [project]
 name = "pnptool"
 version = "0.1"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [{name="Jan Musílek", email="stinovlas@gmail.com" }]
 description = "Print and play toolbox"
 readme = "README.md"
@@ -14,6 +13,8 @@ dependencies = [
   "pypdf[image]",
   "reportlab",
   "click",
+  "cloup",
+  "rich",
 ]
 
 [project.scripts]
