@@ -33,7 +33,7 @@ def parse_images(
 
 def save_images(images: Iterable[Image.Image], prefix: str = "") -> None:
     """Save images to filesystem."""
-    for i, img in enumerate(images):
+    for i, img in enumerate(images, start=1):
         filename = f"{prefix}{i}.jpg"
         print(filename)
         img.save(filename)
